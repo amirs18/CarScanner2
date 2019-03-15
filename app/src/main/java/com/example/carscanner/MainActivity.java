@@ -1,5 +1,7 @@
 package com.example.carscanner;
 
+import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -12,9 +14,15 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
+import android.location.Criteria;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.NotificationCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -41,8 +49,10 @@ public class MainActivity extends AppCompatActivity {
     Handler handler1;
     private static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
     private String deviceAddress;
-    public float max_temo=0;
+    public float max_temo = 0;
     TextView txt;
+    TextView lan;
+    TextView lon;
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
 
         @Override
@@ -67,6 +77,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         ArrayList deviceStrs = new ArrayList();
         txt = findViewById(R.id.txt);
+        lon = findViewById(R.id.lon);
+        lan = findViewById(R.id.lan);
         final ArrayList devices = new ArrayList();
         IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
 
@@ -98,6 +110,7 @@ public class MainActivity extends AppCompatActivity {
                     livedata.start();
                 }
             });
+
             alertDialog.setTitle("Choose Bluetooth device");
             alertDialog.show();
             handler1 = new Handler(new Handler.Callback() {
@@ -113,6 +126,9 @@ public class MainActivity extends AppCompatActivity {
             });
 
         }
+
+        MyLocation myLocation = new MyLocation();
+       myLocation.getLocation();
     }
 
     private static BluetoothSocket connect(BluetoothDevice dev) throws IOException {
@@ -210,7 +226,7 @@ public class MainActivity extends AppCompatActivity {
     private void addNotification() {
         // Builds your notification
         createNotificationChannel();
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this,"chanel")
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, "chanel")
                 .setSmallIcon(R.drawable.example_picture)
                 .setContentTitle("CarScanner")
                 .setContentText("your car is overheating");
@@ -224,6 +240,7 @@ public class MainActivity extends AppCompatActivity {
         NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         manager.notify(101, builder.build());
     }
+
     private void createNotificationChannel() {
         // Create the NotificationChannel, but only on API 26+ because
         // the NotificationChannel class is new and not in the support library
@@ -239,5 +256,58 @@ public class MainActivity extends AppCompatActivity {
             notificationManager.createNotificationChannel(channel);
         }
     }
-}
 
+    class MyLocation {
+        LocationManager locationManager;
+        Location location;
+        LocationListener locationListener;
+
+        public MyLocation() {
+
+        }
+
+
+       public void getper(){
+            boolean x=checkper();
+           while (x){
+               ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, 1);
+               x=checkper();
+           }
+       }
+        public boolean checkper(){
+            if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                return true;
+            }
+            return false;
+        }
+
+        public void getLocation() {
+            getper();
+            lan.setText("0");
+            lon.setText("0");
+            locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+            Criteria criteria = new Criteria();
+            int currentapiVersion = Build.VERSION.SDK_INT;
+
+            if (currentapiVersion >= Build.VERSION_CODES.HONEYCOMB) {
+
+                criteria.setSpeedAccuracy(Criteria.ACCURACY_HIGH);
+                criteria.setAccuracy(Criteria.ACCURACY_FINE);
+                criteria.setAltitudeRequired(true);
+                criteria.setBearingRequired(true);
+                criteria.setSpeedRequired(true);
+                String provider = locationManager.getBestProvider(criteria, true);
+                if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                    location = locationManager.getLastKnownLocation(provider);
+                    lan.setText(location.getLatitude()+" ");
+                    lon.setText(location.getLongitude()+" ");
+
+                }
+
+            }
+
+
+        }
+
+    }
+}
