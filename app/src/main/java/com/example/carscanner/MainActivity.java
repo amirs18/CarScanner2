@@ -30,6 +30,8 @@ import android.util.Log;
 import android.widget.ArrayAdapter;
 import android.widget.TextView;
 
+import com.github.pires.obd.commands.SpeedCommand;
+import com.github.pires.obd.commands.engine.RPMCommand;
 import com.github.pires.obd.commands.protocol.EchoOffCommand;
 import com.github.pires.obd.commands.protocol.LineFeedOffCommand;
 import com.github.pires.obd.commands.protocol.SelectProtocolCommand;
@@ -42,6 +44,8 @@ import java.util.ArrayList;
 import java.util.Set;
 import java.util.UUID;
 
+import antonkozyriatskyi.circularprogressindicator.CircularProgressIndicator;
+
 public class MainActivity extends AppCompatActivity {
     public static int var = 1;
     private static String KEY_temp = "1";
@@ -53,6 +57,8 @@ public class MainActivity extends AppCompatActivity {
     TextView txt;
     TextView lan;
     TextView lon;
+    CircularProgressIndicator circularProgressIndicator;
+    CircularProgressIndicator circularProgressIndicator1;
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
 
         @Override
@@ -75,6 +81,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        circularProgressIndicator = findViewById(R.id.circular_progress);
+        circularProgressIndicator1 =findViewById(R.id.circular_progress1);
         ArrayList deviceStrs = new ArrayList();
         txt = findViewById(R.id.txt);
         lon = findViewById(R.id.lon);
@@ -116,8 +124,13 @@ public class MainActivity extends AppCompatActivity {
             handler1 = new Handler(new Handler.Callback() {
                 @Override
                 public boolean handleMessage(Message msg) {
-                    txt.setText(msg.getData().getString(KEY_temp));
-                    if (n && msg.getData().getFloat("2") > 95) {
+                    txt.setText(msg.getData().getString("string temp"));
+                    circularProgressIndicator.setProgress(msg.getData().getInt("int rpm,"), 10000);
+                    //circularProgressIndicator1.setProgress(msg.getData().getInt("int speed"),200);
+                    circularProgressIndicator1.setProgress(100,200);
+                    int max_speed=0;
+                    max_speed=Math.max(max_speed,msg.getData().getInt("int speed"));
+                    if (n && msg.getData().getFloat("float temp") > 95) {
                         addNotification();
                         n = false;
                     }
@@ -200,8 +213,12 @@ public class MainActivity extends AppCompatActivity {
 
             while (true) {
                 EngineCoolantTemperatureCommand r = new EngineCoolantTemperatureCommand();
+                RPMCommand rpm =new RPMCommand();
+                SpeedCommand speedCommand=new SpeedCommand();
                 try {
+                    speedCommand.run(socket.getInputStream(),socket.getOutputStream());
                     r.run(socket.getInputStream(), socket.getOutputStream());
+                    rpm.run(socket.getInputStream(),socket.getOutputStream());
                 } catch (IOException e) {
                     e.printStackTrace();
                 } catch (InterruptedException e) {
@@ -210,8 +227,10 @@ public class MainActivity extends AppCompatActivity {
 
                 Message message = new Message();
                 Bundle bundle = new Bundle();
-                bundle.putFloat("2", r.getTemperature());
-                bundle.putString(KEY_temp, r.getFormattedResult());
+                bundle.putFloat("float temp", r.getTemperature());
+                bundle.putString("string temp", r.getFormattedResult());
+                bundle.putInt("int rpm",rpm.getRPM());
+                bundle.putInt("int speed",speedCommand.getMetricSpeed());
                 message.setData(bundle);
                 handler.sendMessage(message);
                 try {
@@ -271,8 +290,9 @@ public class MainActivity extends AppCompatActivity {
             boolean x=checkper();
            while (x){
                ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, 1);
-               x=checkper();
+                x = checkper();
            }
+
        }
         public boolean checkper(){
             if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
